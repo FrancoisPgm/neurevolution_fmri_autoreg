@@ -3,6 +3,7 @@ import re
 import torch
 import numpy as np
 from sklearn.metrics import r2_score
+from nilearn.connectome import ConnectivityMeasure
 
 from envs.base import EnvBase
 from bots.static.fmri_autoreg import fMRI_Bot
@@ -10,7 +11,7 @@ from bots.static.fmri_autoreg import fMRI_Bot
 class Env(EnvBase):
 
     def __init__(self, args, rank, size):
-        self.X, self.Y = self.load_data(**args.additional_arguments)
+        self.X, self.Y, self.conn_mat = self.load_data(**args.additional_arguments)
         self.X = torch.Tensor(self.X)
         super().__init__(args, rank, size)
 
@@ -62,6 +63,9 @@ class Env(EnvBase):
             rng = np.random.default_rng()
             data_list = [rng.shuffle(np.concatenate(data_list, axis=0))]
 
+        correlation_measure = ConnectivityMeasure(kind='correlation')
+        conn_mat = correlation_measure.fit_transform([np.concatenate(data_list)])[0]
+
         X_tot, Y_tot = [], []
         delta = lag - 1
         for data in data_list:
@@ -75,7 +79,7 @@ class Env(EnvBase):
         X_tot = np.concatenate(X_tot)
         Y_tot = np.concatenate(Y_tot)
 
-        return X_tot, Y_tot
+        return X_tot, Y_tot, conn_mat
 
 
     def run(self, gen_nb):
